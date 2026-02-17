@@ -1,0 +1,8 @@
+{
+  "name": "frankisdigital agency",
+  "description": "Official school management portal for the German International School, integrating bi-lingual curriculum tracking and German academic standards.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
