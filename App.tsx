@@ -87,12 +87,19 @@ const App: React.FC = () => {
       { id: 'hr-id', full_name: 'Klara Personal', role: 'HR', salary: 5000, email: 'hr@dsb.de', joined_at: '2021-03-01' }
     ]);
     setEnrollments([{ id: 'e1', course_id: 'c1', student_id: 'maximilian-weber', status: 'Active', joined_at: '2023-09-01' }]);
-    setInvoices([{ id: 'inv1', student_id: 'maximilian-weber', student_name: 'Maximilian Weber', items: [], total: 1200, status: 'paid', created_at: '2024-01-01' }]);
+    setInvoices([
+      { id: 'inv1', student_id: 'maximilian-weber', student_name: 'Maximilian Weber', items: [{ description: 'Tution Fee Jan', amount: 1200, quantity: 1 }], total: 1200, status: 'paid', created_at: '2024-01-01' },
+      { id: 'inv2', student_id: 'maximilian-weber', student_name: 'Maximilian Weber', items: [{ description: 'Tution Fee Feb', amount: 1200, quantity: 1 }], total: 1200, status: 'pending', created_at: '2024-02-01' }
+    ]);
     setExpenses([
       { id: 'exp1', category: 'Rent', amount: 5000, date: '2024-02-01', description: 'Monatsmiete Brooklyn Campus', status: 'paid' },
       { id: 'exp2', category: 'Supplies', amount: 350, date: '2024-02-15', description: 'Unterrichtsmaterialien Chemie', status: 'paid' }
     ]);
   }, []);
+
+  const handleUpdateInvoiceStatus = (invoiceId: string, status: 'paid' | 'pending') => {
+    setInvoices(prev => prev.map(inv => inv.id === invoiceId ? { ...inv, status } : inv));
+  };
 
   const handleSaveGrade = (grade: Omit<Grade, 'id' | 'graded_at'>) => {
     setGrades(prev => [{ ...grade, id: `g-${Date.now()}`, graded_at: new Date().toISOString() }, ...prev]);
@@ -160,6 +167,7 @@ const App: React.FC = () => {
           students={students} 
           securityProfiles={securityProfiles} 
           invoices={invoices} 
+          onUpdateInvoiceStatus={handleUpdateInvoiceStatus}
           schoolName={schoolName} 
           onUpdateSchoolName={setSchoolName}
           onUpsertEmployee={(e, id) => id ? setEmployees(p => p.map(x => x.id === id ? {...x, ...e} : x)) : setEmployees(p => [...p, {...e, id: `emp-${Date.now()}`}])}
@@ -185,7 +193,10 @@ const App: React.FC = () => {
           availableCourses={courses} enrolledCourseIds={enrollments.filter(e => e.student_id === user.id).map(e => e.course_id)} enrollmentHistory={enrollments.filter(e => e.student_id === user.id)}
           onEnroll={(cid) => setEnrollments(p => [...p, { id: `e-${Date.now()}`, course_id: cid, student_id: user.id, status: 'Active', joined_at: new Date().toISOString() }])}
           studentGrades={grades.filter(g => g.student_id === user.id)} userProfile={user}
-          myAttendance={attendanceRecords.filter(a => a.student_id === user.id)} homework={homework} mySubmissions={submissions}
+          myAttendance={attendanceRecords.filter(a => a.student_id === user.id)} 
+          homework={homework} 
+          mySubmissions={submissions}
+          myInvoices={invoices.filter(i => i.student_id === user.id)}
           onSumitAssignment={(s) => setSubmissions(p => [...p, { ...s, id: `sub-${Date.now()}`, submitted_at: new Date().toISOString() }])}
         />
       )}

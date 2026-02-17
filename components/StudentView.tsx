@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { CEFRLevel, Course, Grade, UserProfile, Payment, AttendanceRecord, Homework, Enrollment, StudentAssignment, AttendanceStatus } from '../types';
+import { CEFRLevel, Course, Grade, UserProfile, Payment, AttendanceRecord, Homework, Enrollment, StudentAssignment, AttendanceStatus, Invoice } from '../types';
 import CourseCatalog from './CourseCatalog';
 
 interface StudentViewProps {
@@ -15,6 +15,7 @@ interface StudentViewProps {
   homework: Homework[];
   onSumitAssignment: (submission: Omit<StudentAssignment, 'id' | 'submitted_at'>) => void;
   mySubmissions: StudentAssignment[];
+  myInvoices?: Invoice[];
 }
 
 const StudentView: React.FC<StudentViewProps> = (props) => {
@@ -172,25 +173,35 @@ const StudentView: React.FC<StudentViewProps> = (props) => {
                       );
                     })}
                  </div>
+              </div>
 
-                 {/* Legend */}
-                 <div className="pt-6 border-t border-slate-100 flex flex-wrap gap-6">
-                    <div className="flex items-center gap-2">
-                       <div className="w-3 h-3 rounded-full bg-emerald-500" />
-                       <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Anwesend</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                       <div className="w-3 h-3 rounded-full bg-rose-500" />
-                       <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Abwesend</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                       <div className="w-3 h-3 rounded-full bg-amber-500" />
-                       <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Krank</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                       <div className="w-3 h-3 rounded-full bg-indigo-500" />
-                       <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Verspätet/Transfer</span>
-                    </div>
+              {/* Payments & Invoices Card */}
+              <div className="bg-white p-8 md:p-10 rounded-[48px] shadow-sm border border-slate-100 space-y-8">
+                 <h4 className="text-[10px] font-black text-[#1e3a8a] uppercase tracking-[0.3em]">Rechnungen & Zahlungen</h4>
+                 <div className="space-y-4">
+                    {props.myInvoices && props.myInvoices.length > 0 ? props.myInvoices.map(inv => (
+                      <div key={inv.id} className="p-6 bg-slate-50 rounded-[32px] border border-slate-100 flex items-center justify-between hover:border-blue-100 transition-all">
+                        <div className="flex items-center gap-4">
+                           <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl ${inv.status === 'paid' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>
+                              {inv.status === 'paid' ? '✅' : '⏳'}
+                           </div>
+                           <div>
+                              <p className="font-black text-slate-800 text-sm">#{inv.id.slice(-6)} - {inv.items[0]?.description || 'Schulgebühr'}</p>
+                              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{new Date(inv.created_at).toLocaleDateString()}</p>
+                           </div>
+                        </div>
+                        <div className="text-right">
+                           <p className="font-black text-slate-800 text-base">€{inv.total.toLocaleString()}</p>
+                           <span className={`text-[8px] font-black uppercase tracking-widest ${inv.status === 'paid' ? 'text-emerald-500' : 'text-amber-500'}`}>
+                             {inv.status === 'paid' ? 'Bezahlt' : 'Ausstehend'}
+                           </span>
+                        </div>
+                      </div>
+                    )) : (
+                      <div className="py-10 text-center opacity-30">
+                        <p className="text-[10px] font-black uppercase">Keine Rechnungen vorhanden</p>
+                      </div>
+                    )}
                  </div>
               </div>
 
@@ -250,12 +261,6 @@ const StudentView: React.FC<StudentViewProps> = (props) => {
                     )}
                  </div>
               </div>
-
-              {/* Quick Info Section */}
-              <div className="bg-indigo-50 p-8 rounded-[32px] border border-indigo-100">
-                 <h5 className="text-[9px] font-black text-indigo-900 uppercase tracking-widest mb-4">Wichtiger Hinweis</h5>
-                 <p className="text-xs text-indigo-700 leading-relaxed font-bold">Die Anwesenheit wird täglich aktualisiert. Bitte melden Sie Fehlzeiten rechtzeitig über das Schulsekretariat an.</p>
-              </div>
            </div>
         </div>
       )}
@@ -281,40 +286,6 @@ const StudentView: React.FC<StudentViewProps> = (props) => {
                   </div>
                   <h4 className="text-xl font-black text-slate-800 tracking-tight leading-tight">{hw.title}</h4>
                   <p className="text-xs text-slate-500 leading-relaxed font-medium line-clamp-3">{hw.description}</p>
-                  
-                  {hw.attachments && hw.attachments.length > 0 && (
-                    <div className="space-y-2 pt-2">
-                       <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest">Materialien ({hw.attachments.length})</p>
-                       <div className="flex flex-col gap-2">
-                          {hw.attachments.map((at, idx) => (
-                            <a 
-                              key={idx} 
-                              href={at.url} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="p-3 bg-slate-50 rounded-2xl border-2 border-slate-100 flex items-center justify-between group hover:border-blue-200 hover:bg-white transition-all"
-                            >
-                               <div className="flex items-center gap-3">
-                                  <span className="text-xl">{at.type === 'pdf' ? '📄' : '🎨'}</span>
-                                  <span className="text-[10px] font-black text-slate-800 uppercase tracking-widest truncate max-w-[120px]">
-                                    {at.label || 'Dokument'}
-                                  </span>
-                               </div>
-                               <div className="p-2 bg-white text-[#1e3a8a] rounded-lg shadow-sm group-hover:bg-[#1e3a8a] group-hover:text-white transition-all">
-                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                               </div>
-                            </a>
-                          ))}
-                       </div>
-                    </div>
-                  )}
-
-                  {submission && (
-                    <div className="pt-4 border-t border-slate-100 mt-4">
-                      <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest mb-1">Deine Abgabe vom {new Date(submission.submitted_at).toLocaleDateString()}</p>
-                      <p className="text-[10px] italic text-slate-600 line-clamp-2">"{submission.submission_text}"</p>
-                    </div>
-                  )}
                 </div>
 
                 {!submission ? (
@@ -362,7 +333,7 @@ const StudentView: React.FC<StudentViewProps> = (props) => {
 
                  <form onSubmit={handleFinalSubmit} className="space-y-6">
                     <div>
-                       <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Lösungstext</label>
+                       <label className="text-sm font-black text-slate-400 uppercase tracking-widest mb-2 block">Lösungstext</label>
                        <textarea 
                         required
                         value={submissionText}
@@ -370,16 +341,6 @@ const StudentView: React.FC<StudentViewProps> = (props) => {
                         rows={6}
                         placeholder="Schreibe hier deine Antwort oder Lösung..."
                         className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-[28px] text-sm font-bold outline-none focus:border-[#1e3a8a] transition-all resize-none"
-                       />
-                    </div>
-                    <div>
-                       <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Link (optional)</label>
-                       <input 
-                        type="url"
-                        value={submissionUrl}
-                        onChange={e => setSubmissionUrl(e.target.value)}
-                        placeholder="Link zu Google Drive, Dropbox oder GitHub..."
-                        className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-bold outline-none focus:border-[#1e3a8a] transition-all"
                        />
                     </div>
                     <div className="flex gap-4 pt-4">
