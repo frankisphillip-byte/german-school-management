@@ -186,3 +186,20 @@ export interface Expense {
   description: string;
   status: 'paid' | 'pending';
 }
+
+export enum LeaveStatus {
+  PENDING = 'pending',
+  APPROVED = 'approved',
+  REJECTED = 'rejected'
+}
+
+export interface LeaveRequest {
+  id: string;
+  employee_id: string;
+  employee_name: string;
+  start_date: string;
+  end_date: string;
+  reason: string;
+  status: LeaveStatus;
+  requested_at: string;
+}

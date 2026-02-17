@@ -1,8 +1,9 @@
 
 import React, { useState } from 'react';
-import { Course, Grade, AttendanceStatus, AttendanceRecord, Homework, StudentAssignment, Attachment, AssessmentType } from '../types';
+import { Course, Grade, AttendanceStatus, AttendanceRecord, Homework, StudentAssignment, Attachment, AssessmentType, UserProfile, LeaveRequest, LeaveStatus } from '../types';
 
 interface TeacherGradebookProps {
+  user: UserProfile;
   courses: Course[];
   enrollments: { studentName: string, studentId: string, courseId: string, lastGrade: number }[];
   allGrades: Grade[];
@@ -11,11 +12,13 @@ interface TeacherGradebookProps {
   onPostHomework: (hw: Omit<Homework, 'id' | 'created_at'>) => void;
   submissions: StudentAssignment[];
   onSaveGrade: (grade: Omit<Grade, 'id' | 'graded_at'>) => void;
+  leaveRequests: LeaveRequest[];
+  onSubmitLeaveRequest: (req: Omit<LeaveRequest, 'id' | 'status' | 'requested_at'>) => void;
 }
 
 const TeacherGradebook: React.FC<TeacherGradebookProps> = (props) => {
   const [selectedCourseId, setSelectedCourseId] = useState<string>(props.courses[0]?.id || '');
-  const [mode, setMode] = useState<'grading' | 'attendance' | 'homework' | 'submissions' | 'roster'>('grading');
+  const [mode, setMode] = useState<'grading' | 'attendance' | 'homework' | 'submissions' | 'roster' | 'leave'>('grading');
   
   // Grading State
   const [gradingStudent, setGradingStudent] = useState<string>('');
@@ -25,7 +28,12 @@ const TeacherGradebook: React.FC<TeacherGradebookProps> = (props) => {
 
   // Homework State
   const [hwForm, setHwForm] = useState<Omit<Homework, 'id' | 'created_at'>>({
-    course_id: selectedCourseId, teacher_id: '', title: '', description: '', due_date: ''
+    course_id: selectedCourseId, teacher_id: props.user.id, title: '', description: '', due_date: ''
+  });
+
+  // Leave State
+  const [leaveForm, setLeaveForm] = useState({
+    start_date: '', end_date: '', reason: ''
   });
 
   // Attendance Temp State
@@ -65,19 +73,39 @@ const TeacherGradebook: React.FC<TeacherGradebookProps> = (props) => {
     alert('Hausaufgabe wurde veröffentlicht!');
   };
 
+  const handleLeaveSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    props.onSubmitLeaveRequest({
+      employee_id: props.user.id,
+      employee_name: props.user.full_name,
+      ...leaveForm
+    });
+    setLeaveForm({ start_date: '', end_date: '', reason: '' });
+    alert('Leave request submitted for review.');
+  };
+
   return (
     <div className="space-y-8 pb-20 animate-in fade-in duration-500">
       <header className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div>
-           <select value={selectedCourseId} onChange={(e) => setSelectedCourseId(e.target.value)} className="bg-white border-2 border-slate-100 text-[#1e3a8a] text-lg font-black rounded-2xl p-3 px-5 shadow-lg outline-none cursor-pointer">
-             {props.courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-           </select>
-           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2 ml-1">Kursverwaltung Dashboard • {currentCourse?.cefr_level}</p>
+           {mode !== 'leave' ? (
+             <>
+               <select value={selectedCourseId} onChange={(e) => setSelectedCourseId(e.target.value)} className="bg-white border-2 border-slate-100 text-[#1e3a8a] text-lg font-black rounded-2xl p-3 px-5 shadow-lg outline-none cursor-pointer">
+                 {props.courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+               </select>
+               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2 ml-1">Kursverwaltung Dashboard • {currentCourse?.cefr_level}</p>
+             </>
+           ) : (
+             <>
+               <h2 className="text-2xl font-black text-[#1e3a8a] uppercase tracking-tight">Personalwesen</h2>
+               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Self-Service • Leave Management</p>
+             </>
+           )}
         </div>
         <div className="flex bg-white p-1 rounded-2xl border border-slate-100 shadow-md w-full lg:w-fit overflow-x-auto no-scrollbar">
-           {['grading', 'attendance', 'homework', 'submissions', 'roster'].map(m => (
+           {['grading', 'attendance', 'homework', 'submissions', 'roster', 'leave'].map(m => (
              <button key={m} onClick={() => setMode(m as any)} className={`flex-1 lg:flex-none px-6 py-2.5 text-[10px] font-black rounded-xl uppercase tracking-widest transition-all ${mode === m ? 'bg-[#1e3a8a] text-white shadow-md' : 'text-slate-400 hover:text-[#1e3a8a]'}`}>
-               {m}
+               {m === 'leave' ? 'My Leave' : m}
              </button>
            ))}
         </div>
@@ -223,6 +251,65 @@ const TeacherGradebook: React.FC<TeacherGradebookProps> = (props) => {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {mode === 'leave' && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+           <div className="lg:col-span-1 space-y-8">
+              <div className="bg-white p-10 rounded-[48px] shadow-2xl border border-slate-100">
+                <h3 className="text-xl font-black text-slate-800 uppercase mb-8">Neuer Urlaubsantrag</h3>
+                <form onSubmit={handleLeaveSubmit} className="space-y-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 ml-1 block">Von</label>
+                      <input required type="date" value={leaveForm.start_date} onChange={e => setLeaveForm({...leaveForm, start_date: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl font-black text-sm outline-none" />
+                    </div>
+                    <div>
+                      <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 ml-1 block">Bis</label>
+                      <input required type="date" value={leaveForm.end_date} onChange={e => setLeaveForm({...leaveForm, end_date: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl font-black text-sm outline-none" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 ml-1 block">Grund / Kommentar</label>
+                    <textarea required rows={4} value={leaveForm.reason} onChange={e => setLeaveForm({...leaveForm, reason: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl font-black text-sm outline-none resize-none" placeholder="Kurze Begründung..." />
+                  </div>
+                  <button type="submit" className="w-full py-4 bg-[#1e3a8a] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl">Antrag Einreichen</button>
+                </form>
+              </div>
+           </div>
+
+           <div className="lg:col-span-2 space-y-8">
+              <div className="bg-white rounded-[48px] border border-slate-100 shadow-sm overflow-hidden">
+                <div className="px-10 py-8 bg-slate-50 border-b border-slate-100">
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Antragshistorie</h4>
+                </div>
+                <div className="divide-y divide-slate-50">
+                   {props.leaveRequests.length > 0 ? props.leaveRequests.map(req => (
+                     <div key={req.id} className="p-10 flex items-center justify-between hover:bg-slate-50/50 transition-all">
+                        <div className="space-y-1">
+                          <p className="text-sm font-black text-slate-800">{new Date(req.start_date).toLocaleDateString()} - {new Date(req.end_date).toLocaleDateString()}</p>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{req.reason}</p>
+                        </div>
+                        <div className="text-right space-y-2">
+                           <span className={`px-4 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest ${
+                             req.status === LeaveStatus.APPROVED ? 'bg-emerald-100 text-emerald-600' :
+                             req.status === LeaveStatus.REJECTED ? 'bg-rose-100 text-rose-600' :
+                             'bg-amber-100 text-amber-600'
+                           }`}>
+                             {req.status}
+                           </span>
+                           <p className="text-[8px] text-slate-300 font-bold uppercase tracking-widest">Eingereicht: {new Date(req.requested_at).toLocaleDateString()}</p>
+                        </div>
+                     </div>
+                   )) : (
+                     <div className="p-20 text-center opacity-30">
+                       <p className="text-[10px] font-black uppercase tracking-widest">Noch keine Anträge vorhanden</p>
+                     </div>
+                   )}
+                </div>
+              </div>
+           </div>
         </div>
       )}
     </div>

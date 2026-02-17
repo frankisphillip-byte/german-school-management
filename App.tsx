@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from './services/supabase';
-import { UserRole, UserProfile, Course, CEFRLevel, Grade, Expense, AttendanceRecord, AttendanceStatus, Homework, Employee, StudentAccount, SecurityProfile, Invoice, Enrollment, StudentAssignment, EmployeeAttendance, Payslip, PermissionSet } from './types';
+import { UserRole, UserProfile, Course, CEFRLevel, Grade, Expense, AttendanceRecord, AttendanceStatus, Homework, Employee, StudentAccount, SecurityProfile, Invoice, Enrollment, StudentAssignment, EmployeeAttendance, Payslip, PermissionSet, LeaveRequest, LeaveStatus } from './types';
 import Layout from './components/Layout';
 import AdminDashboard from './components/AdminDashboard';
 import TeacherGradebook from './components/TeacherGradebook';
@@ -69,6 +69,7 @@ const App: React.FC = () => {
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [submissions, setSubmissions] = useState<StudentAssignment[]>([]);
+  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
 
   useEffect(() => {
     const checkUser = async () => {
@@ -94,6 +95,9 @@ const App: React.FC = () => {
     setExpenses([
       { id: 'exp1', category: 'Rent', amount: 5000, date: '2024-02-01', description: 'Monatsmiete Brooklyn Campus', status: 'paid' },
       { id: 'exp2', category: 'Supplies', amount: 350, date: '2024-02-15', description: 'Unterrichtsmaterialien Chemie', status: 'paid' }
+    ]);
+    setLeaveRequests([
+      { id: 'lr1', employee_id: 'demo-user-id', employee_name: 'Hans Müller', start_date: '2024-03-10', end_date: '2024-03-15', reason: 'Spring break family trip', status: LeaveStatus.PENDING, requested_at: new Date().toISOString() }
     ]);
   }, []);
 
@@ -148,6 +152,20 @@ const App: React.FC = () => {
     setSecurityProfiles(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
   };
 
+  const handleSubmitLeaveRequest = (req: Omit<LeaveRequest, 'id' | 'status' | 'requested_at'>) => {
+    const newReq: LeaveRequest = {
+      ...req,
+      id: `lr-${Date.now()}`,
+      status: LeaveStatus.PENDING,
+      requested_at: new Date().toISOString()
+    };
+    setLeaveRequests(prev => [newReq, ...prev]);
+  };
+
+  const handleUpdateLeaveRequestStatus = (id: string, status: LeaveStatus) => {
+    setLeaveRequests(prev => prev.map(r => r.id === id ? { ...r, status } : r));
+  };
+
   if (isLoading) return <div className="min-h-screen bg-slate-900 flex items-center justify-center"><div className="w-12 h-12 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div></div>;
   if (!user) return <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 text-center"><button onClick={handleLogin} className="bg-white text-[#1e3a8a] py-4 px-10 rounded-2xl font-black">Login with SSO</button></div>;
 
@@ -174,10 +192,14 @@ const App: React.FC = () => {
           onUpsertStudent={handleUpsertStudent}
           onUpdateSecurityProfile={handleUpdateSecurityProfile}
           onCreateSecurityProfile={handleCreateSecurityProfile}
+          leaveRequests={leaveRequests}
+          onUpdateLeaveRequestStatus={handleUpdateLeaveRequestStatus}
+          onSubmitLeaveRequest={handleSubmitLeaveRequest}
         />
       )}
       {user.role === UserRole.TEACHER && (
         <TeacherGradebook 
+          user={user}
           courses={courses.filter(c => c.teacher_id === user.id)} 
           enrollments={enrollments.map(e => ({ studentName: students.find(s => s.id === e.student_id)?.full_name || 'Student', studentId: e.student_id, courseId: e.course_id, lastGrade: 1.5 }))} 
           allGrades={grades} 
@@ -186,6 +208,8 @@ const App: React.FC = () => {
           onPostHomework={(h) => setHomework(p => [{ ...h, id: `hw-${Date.now()}`, created_at: new Date().toISOString() }, ...p])}
           submissions={submissions}
           onSaveGrade={handleSaveGrade}
+          leaveRequests={leaveRequests.filter(r => r.employee_id === user.id)}
+          onSubmitLeaveRequest={handleSubmitLeaveRequest}
         />
       )}
       {user.role === UserRole.STUDENT && (
