@@ -1,205 +1,177 @@
+/**
+ * types.ts
+ *
+ * Domain types for the German School Management System.
+ *
+ * Security rules enforced here:
+ *  1. NO `password` fields anywhere — authentication is 100% managed by
+ *     Supabase Auth. Passwords never touch application code.
+ *  2. Sensitive PII (salary, tax_id, bank_iban) are marked with a
+ *     `EncryptedField<T>` branded type to make it obvious they require
+ *     special handling before display.
+ *  3. `UserRole` is a string union so it can be used as a discriminant
+ *     in exhaustive switch statements.
+ */
 
-export enum UserRole {
-  ADMIN = 'admin',
-  TEACHER = 'teacher',
-  STUDENT = 'student',
-  HR = 'hr'
-}
+// ── Branded types ─────────────────────────────────────────────────────────────
+export type EncryptedField<T extends string = string> = T & {
+  readonly __encrypted: unique symbol;
+};
 
-export enum CEFRLevel {
-  A1 = 'A1',
-  A2 = 'A2',
-  B1 = 'B1',
-  B2 = 'B2',
-  C1 = 'C1',
-  C2 = 'C2'
-}
+// ── Enums / Unions ────────────────────────────────────────────────────────────
+export type UserRole         = 'admin' | 'teacher' | 'student' | 'parent' | 'hr';
+export type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused';
+export type GradeType        = 'exam' | 'oral' | 'homework' | 'project' | 'participation';
+export type ContractType     = 'full_time' | 'part_time' | 'contractor' | 'intern';
+export type PayslipStatus    = 'pending' | 'approved' | 'paid';
+export type InvoiceStatus    = 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
 
-export interface UserProfile {
-  id: string;
-  email: string;
-  full_name: string;
-  role: UserRole;
+// ── Core entities ─────────────────────────────────────────────────────────────
+
+export interface Profile {
+  id:          string;
+  role:        UserRole;
+  full_name:   string;
+  email:       string;
+  phone?:      string;
   avatar_url?: string;
+  is_active:   boolean;
+  locale:      string;
+  created_at:  string;
+  updated_at:  string;
+}
+
+/**
+ * Employee — NO password field.
+ * PII columns branded as EncryptedField — decrypt before display.
+ */
+export interface Employee {
+  id:              string;
+  profile_id:      string;
+  employee_number: string;
+  department:      string;
+  position:        string;
+  hire_date:       string;
+  contract_type:   ContractType;
+  salary?:         EncryptedField<string>;
+  tax_id?:         EncryptedField<string>;
+  bank_iban?:      EncryptedField<string>;
+  created_at:      string;
+  updated_at:      string;
+  profile?:        Profile;
 }
 
 export interface Course {
-  id: string;
-  name: string;
-  description: string;
-  cefr_level: CEFRLevel;
-  teacher_id: string;
-  google_classroom_id?: string;
-  created_at: string;
+  id:            string;
+  name:          string;
+  code:          string;
+  description?:  string;
+  academic_year: string;
+  semester:      'WS' | 'SS';
+  is_active:     boolean;
+  created_at:    string;
+  updated_at:    string;
 }
 
-export interface Attachment {
-  url: string;
-  type: 'pdf' | 'infographic';
-  label?: string;
-}
-
-export interface Homework {
-  id: string;
-  course_id: string;
-  teacher_id: string;
-  title: string;
-  description: string;
-  due_date: string;
-  attachments?: Attachment[];
-  created_at: string;
-}
-
-export interface StudentAssignment {
-  id: string;
-  assignment_id: string;
+export interface Grade {
+  id:         string;
   student_id: string;
-  submission_text?: string;
-  submission_url?: string;
-  submitted_at: string;
+  course_id:  string;
+  graded_by:  string;
+  grade:      number;
+  grade_type: GradeType;
+  weight:     number;
+  notes?:     string;
+  graded_at:  string;
+  created_at: string;
+  updated_at: string;
+  student?:   Profile;
+  course?:    Course;
+  grader?:    Profile;
 }
 
-export interface Employee {
-  id: string;
-  full_name: string;
-  role: 'Teacher' | 'Admin' | 'Support' | 'HR';
-  salary: number;
-  tax_id?: string;
-  email?: string;
-  password?: string;
-  phone?: string;
-  address?: string;
-  education_level?: string;
-  id_document_url?: string;
-  license_document_url?: string;
-  joined_at: string;
-}
-
-export interface PermissionSet {
-  view_grades: boolean;
-  submit_homework: boolean;
-  enroll_courses: boolean;
-  view_attendance: boolean;
-  edit_profile: boolean;
-  manage_finance: boolean;
-  manage_hr: boolean;
-  manage_employee_data: boolean;
-  generate_payroll: boolean;
-  manage_attendance_hr: boolean;
-}
-
-export interface SecurityProfile {
-  id: string;
-  name: string;
-  description: string;
-  permissions: PermissionSet;
-}
-
-export interface StudentAccount {
-  id: string;
-  full_name: string;
-  email: string;
-  password?: string;
-  security_profile_id: string;
-  joined_at: string;
+export interface Attendance {
+  id:          string;
+  student_id:  string;
+  course_id:   string;
+  recorded_by: string;
+  date:        string;
+  status:      AttendanceStatus;
+  notes?:      string;
+  created_at:  string;
+  student?:    Profile;
+  course?:     Course;
 }
 
 export interface Payslip {
-  id: string;
-  employee_id: string;
-  period: string;
-  base_salary: number;
-  overtime: number;
-  allowance: number;
-  tax_deduction: number;
-  other_deductions: number;
-  leave_days_used: number;
-  net_pay: number;
-  created_at: string;
-}
-
-export interface InvoiceItem {
-  description: string;
-  amount: number;
-  quantity: number;
+  id:           string;
+  employee_id:  string;
+  period_start: string;
+  period_end:   string;
+  gross_salary: number;
+  net_salary:   number;
+  tax_withheld: number;
+  deductions:   Record<string, number>;
+  status:       PayslipStatus;
+  approved_by?: string;
+  paid_at?:     string;
+  pdf_url?:     string;
+  created_at:   string;
+  updated_at:   string;
+  employee?:    Employee;
 }
 
 export interface Invoice {
-  id: string;
-  student_id: string;
-  student_name: string;
-  items: InvoiceItem[];
-  total: number;
-  status: 'paid' | 'pending';
-  created_at: string;
+  id:             string;
+  invoice_number: string;
+  issued_to:      string;
+  issued_by:      string;
+  amount:         number;
+  vat_rate:       number;
+  vat_amount:     number;
+  total_amount:   number;
+  description:    string;
+  due_date:       string;
+  status:         InvoiceStatus;
+  paid_at?:       string;
+  pdf_url?:       string;
+  metadata:       Record<string, unknown>;
+  created_at:     string;
+  updated_at:     string;
+  recipient?:     Profile;
+  issuer?:        Profile;
 }
 
-export interface Payment {
-  id: string;
-  student_id: string;
-  amount: number;
-  date: string;
-  status: 'paid' | 'pending';
+// ── API / form shapes ─────────────────────────────────────────────────────────
+
+export interface GradeEntryPayload {
+  student_id:  string;
+  course_id:   string;
+  grade:       number;
+  grade_type:  GradeType;
+  weight?:     number;
+  notes?:      string;
+  graded_at?:  string;
 }
 
-export interface Enrollment {
-  id: string;
+export interface AttendanceBulkPayload {
   course_id: string;
-  student_id: string;
-  status: 'Active' | 'Completed';
-  joined_at: string;
+  date:      string;
+  records:   Array<{
+    student_id: string;
+    status:     AttendanceStatus;
+    notes?:     string;
+  }>;
 }
 
-export interface EmployeeAttendance {
-  id: string;
-  employee_id: string;
-  date: string;
-  status: 'present' | 'absent' | 'sick' | 'vacation';
+// ── Utilities ─────────────────────────────────────────────────────────────────
+
+export function formatEuros(cents: number): string {
+  return new Intl.NumberFormat('de-DE', {
+    style: 'currency', currency: 'EUR',
+  }).format(cents / 100);
 }
 
-export type AssessmentType = 'Written' | 'Speaking' | 'Listening' | 'Reading';
-export type AttendanceStatus = 'present' | 'absent' | 'sick' | 'transferred';
-
-export interface Grade {
-  id: string;
-  student_id: string;
-  course_id: string;
-  grade_value: number;
-  feedback?: string;
-  graded_at: string;
-  type: AssessmentType;
-}
-
-export interface AttendanceRecord {
-  id: string;
-  student_id: string;
-  course_id: string;
-  date: string;
-  status: AttendanceStatus;
-}
-
-export interface Expense {
-  id: string;
-  category: 'Salaries' | 'Rent' | 'Supplies' | 'Maintenance' | 'Marketing';
-  amount: number;
-  date: string;
-  description: string;
-  status: 'paid' | 'pending';
-}
-
-export enum LeaveStatus {
-  PENDING = 'pending',
-  APPROVED = 'approved',
-  REJECTED = 'rejected'
-}
-
-export interface LeaveRequest {
-  id: string;
-  employee_id: string;
-  employee_name: string;
-  start_date: string;
-  end_date: string;
-  reason: string;
-  status: LeaveStatus;
-  requested_at: string;
+export function isUserRole(value: unknown): value is UserRole {
+  return ['admin', 'teacher', 'student', 'parent', 'hr'].includes(value as string);
 }
